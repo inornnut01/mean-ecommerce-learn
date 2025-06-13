@@ -79,20 +79,19 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      return res.status(400).json({message: "Unauthorized"});
-    }
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    const userId = decoded.userId;
-    await redis.del(`refresh_token:${userId}`);
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-    res.status(200).json({message: "Logged out successfully"});
-  } catch (error) {
-    console.log("Error in logout controller", error.message);
-    res.status(500).json({message: "Server error", error: error.message});
-  }
+		const refreshToken = req.cookies.refreshToken;
+		if (refreshToken) {
+			const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+			await redis.del(`refresh_token:${decoded.userId}`);
+		}
+
+		res.clearCookie("accessToken");
+		res.clearCookie("refreshToken");
+		res.json({ message: "Logged out successfully" });
+	} catch (error) {
+		console.log("Error in logout controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
 };
 
 // this will refresh the access token if it is expired
