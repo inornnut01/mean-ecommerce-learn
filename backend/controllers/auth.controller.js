@@ -69,7 +69,7 @@ export const login = async (req, res) => {
         role: user.role,
       });
     } else {
-      return res.status(401).json({message: "Invalid email or password"});
+      return res.status(400).json({message: "Invalid email or password"});
     }
   } catch (error) {
     console.log("Error in login controller", error.message);
@@ -81,7 +81,7 @@ export const logout = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) {
-      return res.status(401).json({message: "Unauthorized"});
+      return res.status(400).json({message: "Unauthorized"});
     }
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     const userId = decoded.userId;
