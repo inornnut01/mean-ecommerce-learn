@@ -1,96 +1,86 @@
-import User from "../models/user.model.js";
 import Order from "../models/order.model.js";
 import Product from "../models/product.model.js";
+import User from "../models/user.model.js";
 
-export const getAnalytics = async (req, res) => {
-  try {
-    const analyticsData = await getAnalyticsData();
+export const getAnalyticsData = async () => {
+	const totalUsers = await User.countDocuments();
+	const totalProducts = await Product.countDocuments();
 
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+	const salesData = await Order.aggregate([
+		{
+			$group: {
+				_id: null, // it groups all documents together,
+				totalSales: { $sum: 1 },
+				totalRevenue: { $sum: "$totalAmount" },
+			},
+		},
+	]);
 
-    const dailySales = await getDailySales(startDate, endDate);
+	const { totalSales, totalRevenue } = salesData[0] || { totalSales: 0, totalRevenue: 0 };
 
-    res.json({
-      analyticsData,
-      dailySales,
-    });
-  } catch (error) {
-    console.log("Error in getAnalytics controller", error.message);
-    res.status(500).json({message: "Server error", error: error.message});
-  }
+	return {
+		users: totalUsers,
+		products: totalProducts,
+		totalSales,
+		totalRevenue,
+	};
 };
 
-const getAnalyticsData = async () => {
-  const totalUsers = await User.countDocuments();
-  const totalProducts = await Product.countDocuments();
+export const getDailySalesData = async (startDate, endDate) => {
+	try {
+		const dailySalesData = await Order.aggregate([
+			{
+				$match: {
+					createdAt: {
+						$gte: startDate,
+						$lte: endDate,
+					},
+				},
+			},
+			{
+				$group: {
+					_id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+					sales: { $sum: 1 },
+					revenue: { $sum: "$totalAmount" },
+				},
+			},
+			{ $sort: { _id: 1 } },
+		]);
 
-  const salesData = await Order.aggregate([
-    {
-      $group: {
-        _id: null, //it groups all documents together
-        totalSales: {$sum: 1},
-        totalRevenue: {$sum: "$totalAmount"},
-      }
-    }
-  ]);
+		// example of dailySalesData
+		// [
+		// 	{
+		// 		_id: "2024-08-18",
+		// 		sales: 12,
+		// 		revenue: 1450.75
+		// 	},
+		// ]
 
-  const {totalSales, totalRevenue} = salesData[0] || {totalSales: 0, totalRevenue: 0};
+		const dateArray = getDatesInRange(startDate, endDate);
+		// console.log(dateArray) // ['2024-08-18', '2024-08-19', ... ]
 
-  return {
-    users: totalUsers,
-    products: totalProducts,
-    sales: totalSales,
-    revenue: totalRevenue,
-  }
+		return dateArray.map((date) => {
+			const foundData = dailySalesData.find((item) => item._id === date);
+
+			return {
+				date,
+				sales: foundData?.sales || 0,
+				revenue: foundData?.revenue || 0,
+			};
+		});
+	} catch (error) {
+		throw error;
+	}
 };
 
-const getDailySales = async (startDate, endDate) => {
-  try {
-    const dailySales = await Order.aggregate([
-      {
-        $match: {
-          createdAt: {
-            $gte: startDate,
-            $lte: endDate,
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {$dateToString: {format: "%Y-%m-%d", date: "$createdAt"}},
-          sales: {$sum: 1},
-          revenue: {$sum: "$totalAmount"},
-        }
-      },
-      {
-        $sort: {_id: 1},
-      }
-    ]);
-  
-    const dateArray = getDateInRange(startDate, endDate);
-  
-    return dateArray.map(date => {
-      const foundData = dailySales.find(item => item._id === date);
-      return {
-        date,
-        sales: foundData?.sales || 0,
-        revenue: foundData?.revenue || 0,
-      };
-    });
-  } catch (error) {
-    throw error;
-  }
-};
+function getDatesInRange(startDate, endDate) {
+	const dates = [];
+	let currentDate = new Date(startDate);
 
-function getDateInRange(startDate, endDate) {
-  const dates = [];
-  let currentDate = new Date(startDate);
+	while (currentDate <= endDate) {
+		dates.push(currentDate.toISOString().split("T")[0]);
+		currentDate.setDate(currentDate.getDate() + 1);
+	}
 
-  while(currentDate <= endDate) {
-    dates.push(currentDate.toISOString().split("T")[0]);
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return dates;
+	return dates;
 }

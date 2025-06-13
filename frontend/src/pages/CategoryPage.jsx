@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useProductStore } from "../stores/useProductStore";
 import { useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion } from "framer-motion"; // eslint-disable-line
 import ProductCard from "../components/ProductCard";
 
 const CategoryPage = () => {

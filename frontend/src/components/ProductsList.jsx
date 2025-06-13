@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "framer-motion"; // eslint-disable-line
 import { Trash, Star } from "lucide-react";
 import { useProductStore } from "../stores/useProductStore";
 
